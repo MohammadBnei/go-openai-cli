@@ -72,6 +72,39 @@ func SendPrompt(ctx context.Context, text string, output io.Writer) (string, err
 	return fullMsg, nil
 }
 
+func SendEditPrompt(ctx context.Context, instruction string, messageIndex int, output io.Writer) (string, error) {
+	c := openai.NewClient(viper.GetString("OPENAI_KEY"))
+
+	s := spinner.New(spinner.CharSets[26], 100*time.Millisecond)
+	s.Start()
+
+	model := viper.GetString("model")
+
+	if model == "" {
+		model = openai.GPT3Dot5Turbo
+	}
+
+	message := messages[messageIndex]
+
+	resp, err := c.Edits(
+		ctx,
+		openai.EditsRequest{
+			Model:       &model,
+			Input:       message.Content,
+			Instruction: instruction,
+		},
+	)
+	if err != nil {
+		return "", err
+	}
+
+	output.Write([]byte("\n"))
+
+	messages[messageIndex].Content = resp.Choices[0].Text
+
+	return resp.Choices[0].Text, nil
+}
+
 func AddMessage(msg openai.ChatCompletionMessage) {
 	messages = append(messages, msg)
 
