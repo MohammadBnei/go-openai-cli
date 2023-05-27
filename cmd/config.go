@@ -21,7 +21,7 @@ var configCmd = &cobra.Command{
 	Short: "Set the configuration in a file",
 	Run: func(cmd *cobra.Command, args []string) {
 		if l, _ := cmd.Flags().GetBool("list-model"); l {
-			modelList, err := service.GetModelList()
+			modelList, err := service.OpenAiService.GetModelList()
 			if err != nil {
 				fmt.Println(err)
 				return

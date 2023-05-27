@@ -124,7 +124,7 @@ FileLoop:
 			fmt.Println(err)
 			return
 		}
-		service.AddMessage(openai.ChatCompletionMessage{
+		service.OpenAiService.AddMessage(openai.ChatCompletionMessage{
 			Content: fmt.Sprintf("// Filename : %s\n%s", file.Name(), fileContent),
 			Role:    openai.ChatMessageRoleUser,
 		})

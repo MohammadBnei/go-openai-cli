@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/MohammadBnei/go-openai-cli/service"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -51,7 +52,7 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(initConfig, service.InitOpenAiService)
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,

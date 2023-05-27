@@ -40,7 +40,7 @@ func OpenAiPrompt() {
 PromptLoop:
 	for {
 		label = "prompt"
-		totalCharacters := funk.Reduce(service.GetMessages(), func(acc int, elem openai.ChatCompletionMessage) int {
+		totalCharacters := funk.Reduce(service.OpenAiService.GetMessages(), func(acc int, elem openai.ChatCompletionMessage) int {
 			return acc + len(elem.Content)
 		}, 0)
 		if totalCharacters != 0 {
@@ -96,7 +96,7 @@ PromptLoop:
 			fmt.Println("copied to clipboard")
 
 		case "c":
-			service.ClearMessages()
+			service.OpenAiService.ClearMessages()
 			fileNumber = 0
 			fmt.Println("cleared messages")
 
@@ -114,7 +114,7 @@ PromptLoop:
 				}
 			}()
 
-			response, err := service.SendPrompt(ctx, userPrompt, os.Stdout)
+			response, err := service.OpenAiService.SendPrompt(ctx, userPrompt, os.Stdout)
 			close(c)
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {

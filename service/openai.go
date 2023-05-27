@@ -3,94 +3,72 @@ package service
 import (
 	"context"
 	"io"
-	"strings"
-	"time"
+	"os"
 
-	"github.com/briandowns/spinner"
 	"github.com/sashabaranov/go-openai"
 	"github.com/spf13/viper"
 )
 
-var messages []openai.ChatCompletionMessage
+var OpenAiService *openAiService
 
-func SendPrompt(ctx context.Context, text string, output io.Writer) (string, error) {
-	c := openai.NewClient(viper.GetString("OPENAI_KEY"))
+type openAiService struct {
+	client             *openai.Client
+	Messages           []openai.ChatCompletionMessage
+	chatCompletionList map[string]any
+	model              string
+	output             io.Writer
+}
 
-	s := spinner.New(spinner.CharSets[26], 100*time.Millisecond)
-	s.Start()
-	defer s.Stop()
+func InitOpenAiService() {
+	chatCompletionList := map[string]any{"code-davinci-002": true, "text-davinci-002": true}
+	model := viper.GetString("model")
+	if model == "" {
+		model = openai.GPT3Dot5Turbo
+	}
 
-	AddMessage(openai.ChatCompletionMessage{
+	OpenAiService = &openAiService{
+		client:             openai.NewClient(viper.GetString("OPENAI_KEY")),
+		Messages:           []openai.ChatCompletionMessage{},
+		chatCompletionList: chatCompletionList,
+		model:              model,
+		output:             os.Stdout,
+	}
+}
+
+func (s *openAiService) SendPrompt(ctx context.Context, text string, output io.Writer) (string, error) {
+	s.AddMessage(openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
 		Content: text,
 	})
 	model := viper.GetString("model")
 
-	if model == "" {
-		model = openai.GPT3Dot5Turbo
+	switch {
+	case s.chatCompletionList[model] == nil:
+		return CreateChatCompletion(ctx)
+	default:
+		return CreateCompletion(ctx)
 	}
 
-	resp, err := c.CreateChatCompletionStream(
-		ctx,
-		openai.ChatCompletionRequest{
-			Model:    model,
-			Messages: messages,
-			Stream:   true,
-		},
-	)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Close()
-
-	fullMsg := ""
-	role := ""
-
-	for {
-		msg, err := resp.Recv()
-		s.Stop()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return "", err
-		}
-
-		output.Write([]byte(msg.Choices[0].Delta.Content))
-		fullMsg = strings.Join([]string{fullMsg, msg.Choices[0].Delta.Content}, "")
-		if role == "" {
-			role = msg.Choices[0].Delta.Role
-		}
-	}
-
-	AddMessage(openai.ChatCompletionMessage{
-		Content: fullMsg,
-		Role:    role,
-	})
-
-	output.Write([]byte("\n"))
-
-	return fullMsg, nil
 }
 
-func AddMessage(msg openai.ChatCompletionMessage) {
-	messages = append(messages, msg)
+func (s *openAiService) AddMessage(msg openai.ChatCompletionMessage) {
+	s.Messages = append(s.Messages, msg)
 
-	if len(messages) > viper.GetInt("messages-length") {
-		messages = messages[1:]
+	if len(s.Messages) > viper.GetInt("messages-length") {
+		s.Messages = s.Messages[1:]
 	}
 }
 
-func ClearMessages() {
-	messages = []openai.ChatCompletionMessage{}
+func (s *openAiService) ClearMessages() {
+	s.Messages = []openai.ChatCompletionMessage{}
 }
 
-func GetMessages() []openai.ChatCompletionMessage {
-	return messages
+func (s *openAiService) GetMessages() []openai.ChatCompletionMessage {
+	return s.Messages
 }
-func GetModelList() ([]string, error) {
-	c := openai.NewClient(viper.GetString("OPENAI_KEY"))
-	models, err := c.ListModels(context.Background())
+
+func (s *openAiService) GetModelList() ([]string, error) {
+	models, err := s.client.ListModels(context.Background())
 	if err != nil {
 		return nil, err
 	}
